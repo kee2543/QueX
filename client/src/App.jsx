@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import Navbar from './components/Navbar';
@@ -110,13 +111,17 @@ function AppRoutes() {
 }
 
 export default function App() {
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <SocketProvider>
-          <AppRoutes />
-        </SocketProvider>
-      </AuthProvider>
-    </BrowserRouter>
+    <GoogleOAuthProvider clientId={googleClientId}>
+      <BrowserRouter>
+        <AuthProvider>
+          <SocketProvider>
+            <AppRoutes />
+          </SocketProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </GoogleOAuthProvider>
   );
 }

@@ -324,6 +324,10 @@ a:hover {
   z-index: 1;
 }
 
+.auth-card-wide {
+  max-width: 480px;
+}
+
 .auth-header {
   text-align: center;
   margin-bottom: 2rem;
@@ -354,6 +358,229 @@ a:hover {
 
 .auth-footer a {
   font-weight: 600;
+}
+
+.auth-form {
+  animation: fadeInUp 0.3s ease;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ─── Auth Tabs ──────────────────────────────────────────── */
+.auth-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  border: 1px solid var(--border-subtle);
+}
+
+.auth-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1rem;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.auth-tab:hover {
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.auth-tab.active {
+  color: var(--text-primary);
+  background: rgba(124, 58, 237, 0.15);
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.15);
+}
+
+/* ─── Input with Icon ────────────────────────────────────── */
+.input-with-icon {
+  position: relative;
+}
+
+.input-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+  transition: color var(--transition-fast);
+}
+
+.form-input-icon {
+  padding-left: 2.75rem;
+}
+
+.input-with-icon:focus-within .input-icon {
+  color: var(--color-primary);
+}
+
+/* ─── OTP Inputs ─────────────────────────────────────────── */
+.otp-intro {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.otp-intro-icon {
+  color: var(--text-accent);
+  margin-bottom: 0.75rem;
+  opacity: 0.8;
+}
+
+.otp-intro strong {
+  color: var(--text-accent);
+}
+
+.otp-input-group {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.otp-digit {
+  width: 50px;
+  height: 58px;
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+  border: 2px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: all var(--transition-fast);
+  caret-color: var(--color-primary);
+}
+
+.otp-digit:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2), 0 0 16px rgba(124, 58, 237, 0.1);
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-2px);
+}
+
+.otp-digit:not(:placeholder-shown) {
+  border-color: rgba(124, 58, 237, 0.4);
+}
+
+.otp-resend {
+  text-align: center;
+  margin-top: 1rem;
+  font-size: 0.85rem;
+}
+
+.otp-countdown {
+  color: var(--text-muted);
+}
+
+.otp-resend-btn {
+  background: none;
+  border: none;
+  color: var(--text-accent);
+  font-weight: 600;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+  padding: 0.25rem 0.5rem;
+}
+
+.otp-resend-btn:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+/* ─── Auth Divider ───────────────────────────────────────── */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1.5rem 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-glass);
+}
+
+/* ─── Google Button ──────────────────────────────────────── */
+.google-btn-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+
+.google-btn-wrapper > div {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* ─── Role Toggle ────────────────────────────────────────── */
+.role-toggle {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.role-btn {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.role-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(124, 58, 237, 0.2);
+}
+
+.role-btn.active {
+  background: var(--gradient-primary);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);
 }
 
 /* ─── Navbar ─────────────────────────────────────────────── */
@@ -527,6 +754,25 @@ a:hover {
 @media (max-width: 768px) {
   .auth-card {
     padding: 1.75rem;
+  }
+
+  .auth-card-wide {
+    max-width: 100%;
+  }
+
+  .otp-digit {
+    width: 42px;
+    height: 50px;
+    font-size: 1.25rem;
+  }
+
+  .otp-input-group {
+    gap: 0.4rem;
+  }
+
+  .auth-tab {
+    font-size: 0.8rem;
+    padding: 0.55rem 0.5rem;
   }
 
   .navbar {

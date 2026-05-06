@@ -20,27 +20,47 @@ export function AuthProvider({ children }) {
     setLoading(false);
   }, []);
 
-  const login = async (email, password) => {
-    const res = await api.post('/auth/login', { email, password });
-    const { user: userData, token: jwtToken } = res.data;
-
+  const _saveSession = (userData, jwtToken) => {
     localStorage.setItem('queuex_token', jwtToken);
     localStorage.setItem('queuex_user', JSON.stringify(userData));
     setToken(jwtToken);
     setUser(userData);
+  };
 
+  const login = async (email, password) => {
+    const res = await api.post('/auth/login', { email, password });
+    const { user: userData, token: jwtToken } = res.data;
+    _saveSession(userData, jwtToken);
     return userData;
   };
 
   const register = async (name, email, password, role) => {
     const res = await api.post('/auth/register', { name, email, password, role });
     const { user: userData, token: jwtToken } = res.data;
+    _saveSession(userData, jwtToken);
+    return userData;
+  };
 
-    localStorage.setItem('queuex_token', jwtToken);
-    localStorage.setItem('queuex_user', JSON.stringify(userData));
-    setToken(jwtToken);
-    setUser(userData);
+  // ─── OTP Methods ────────────────────────────────────────
 
+  const sendOtp = async (email) => {
+    const res = await api.post('/auth/otp/send', { email });
+    return res.data;
+  };
+
+  const verifyOtp = async (email, code) => {
+    const res = await api.post('/auth/otp/verify', { email, code });
+    const { user: userData, token: jwtToken } = res.data;
+    _saveSession(userData, jwtToken);
+    return userData;
+  };
+
+  // ─── Google OAuth ───────────────────────────────────────
+
+  const loginWithGoogle = async (idToken, role) => {
+    const res = await api.post('/auth/google', { idToken, role });
+    const { user: userData, token: jwtToken } = res.data;
+    _saveSession(userData, jwtToken);
     return userData;
   };
 
@@ -60,6 +80,9 @@ export function AuthProvider({ children }) {
     isUser: user?.role === 'USER',
     login,
     register,
+    sendOtp,
+    verifyOtp,
+    loginWithGoogle,
     logout,
   };
 

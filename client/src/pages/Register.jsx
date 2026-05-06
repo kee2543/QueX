@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext';
+import { Mail, Lock, User, ArrowRight } from 'lucide-react';
 
 export default function Register() {
   const [name, setName] = useState('');
@@ -9,7 +11,7 @@ export default function Register() {
   const [role, setRole] = useState('USER');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
+  const { register, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -33,9 +35,27 @@ export default function Register() {
     }
   };
 
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setError('');
+    setLoading(true);
+
+    try {
+      const user = await loginWithGoogle(credentialResponse.credential, role);
+      navigate(user.role === 'ORG' ? '/dashboard' : '/queues');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Google sign-up failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setError('Google sign-up was cancelled or failed.');
+  };
+
   return (
     <div className="auth-container">
-      <div className="auth-card">
+      <div className="auth-card auth-card-wide">
         <div className="auth-header">
           <h1 className="auth-logo">QueueX</h1>
           <p className="auth-subtitle">Create your account to get started.</p>
@@ -43,68 +63,75 @@ export default function Register() {
 
         {error && <div className="error-msg">{error}</div>}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
             <label className="form-label" htmlFor="register-name">Full Name</label>
-            <input
-              id="register-name"
-              className="form-input"
-              type="text"
-              placeholder="John Doe"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              autoComplete="name"
-            />
+            <div className="input-with-icon">
+              <User size={18} className="input-icon" />
+              <input
+                id="register-name"
+                className="form-input form-input-icon"
+                type="text"
+                placeholder="John Doe"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                autoComplete="name"
+              />
+            </div>
           </div>
 
           <div className="form-group">
             <label className="form-label" htmlFor="register-email">Email</label>
-            <input
-              id="register-email"
-              className="form-input"
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-            />
+            <div className="input-with-icon">
+              <Mail size={18} className="input-icon" />
+              <input
+                id="register-email"
+                className="form-input form-input-icon"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+              />
+            </div>
           </div>
 
           <div className="form-group">
             <label className="form-label" htmlFor="register-password">Password</label>
-            <input
-              id="register-password"
-              className="form-input"
-              type="password"
-              placeholder="Minimum 6 characters"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              autoComplete="new-password"
-            />
+            <div className="input-with-icon">
+              <Lock size={18} className="input-icon" />
+              <input
+                id="register-password"
+                className="form-input form-input-icon"
+                type="password"
+                placeholder="Minimum 6 characters"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+                autoComplete="new-password"
+              />
+            </div>
           </div>
 
           <div className="form-group">
             <label className="form-label" htmlFor="register-role">I am a</label>
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <div className="role-toggle">
               <button
                 type="button"
                 id="role-user"
-                className={`btn btn-full ${role === 'USER' ? 'btn-primary' : 'btn-secondary'}`}
+                className={`role-btn ${role === 'USER' ? 'active' : ''}`}
                 onClick={() => setRole('USER')}
-                style={{ flex: 1 }}
               >
                 👤 Customer
               </button>
               <button
                 type="button"
                 id="role-org"
-                className={`btn btn-full ${role === 'ORG' ? 'btn-primary' : 'btn-secondary'}`}
+                className={`role-btn ${role === 'ORG' ? 'active' : ''}`}
                 onClick={() => setRole('ORG')}
-                style={{ flex: 1 }}
               >
                 🏢 Organization
               </button>
@@ -123,10 +150,31 @@ export default function Register() {
                 Creating account...
               </>
             ) : (
-              'Create Account'
+              <>
+                Create Account
+                <ArrowRight size={18} />
+              </>
             )}
           </button>
         </form>
+
+        {/* ─── Divider ───────────────────────────────── */}
+        <div className="auth-divider">
+          <span>or sign up with</span>
+        </div>
+
+        {/* ─── Google Sign-Up ────────────────────────── */}
+        <div className="google-btn-wrapper">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={handleGoogleError}
+            theme="filled_black"
+            size="large"
+            width="100%"
+            text="signup_with"
+            shape="pill"
+          />
+        </div>
 
         <div className="auth-footer">
           Already have an account?{' '}

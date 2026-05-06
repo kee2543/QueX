@@ -48,6 +48,69 @@ const authController = {
   },
 
   /**
+   * POST /api/auth/otp/send
+   * Send a 6-digit OTP to the given email address
+   */
+  async sendOtp(req, res) {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ error: 'Email is required.' });
+      }
+
+      const result = await authService.sendOtp({ email });
+      res.json(result);
+    } catch (error) {
+      const status = error.status || 500;
+      const message = error.message || 'Internal server error.';
+      res.status(status).json({ error: message });
+    }
+  },
+
+  /**
+   * POST /api/auth/otp/verify
+   * Verify a 6-digit OTP and return JWT
+   */
+  async verifyOtp(req, res) {
+    try {
+      const { email, code } = req.body;
+
+      if (!email || !code) {
+        return res.status(400).json({ error: 'Email and verification code are required.' });
+      }
+
+      const result = await authService.verifyOtp({ email, code });
+      res.json(result);
+    } catch (error) {
+      const status = error.status || 500;
+      const message = error.message || 'Internal server error.';
+      res.status(status).json({ error: message });
+    }
+  },
+
+  /**
+   * POST /api/auth/google
+   * Authenticate with a Google ID token
+   */
+  async googleOAuth(req, res) {
+    try {
+      const { idToken, role } = req.body;
+
+      if (!idToken) {
+        return res.status(400).json({ error: 'Google ID token is required.' });
+      }
+
+      const result = await authService.googleOAuth({ idToken, role });
+      res.json(result);
+    } catch (error) {
+      const status = error.status || 500;
+      const message = error.message || 'Internal server error.';
+      res.status(status).json({ error: message });
+    }
+  },
+
+  /**
    * GET /api/auth/me
    * Get current user's profile
    */

@@ -24,7 +24,16 @@ const app = express();
 const server = http.createServer(app);
 
 // ─── Security Middleware ────────────────────────────────
-app.use(helmet()); // Sets various security headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      "connect-src": ["'self'", "http://localhost:5173", "ws://localhost:5173", "http://localhost:5000", "ws://localhost:5000"],
+      "img-src": ["'self'", "data:", "https:"],
+    },
+  },
+}));
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:5173',
   credentials: true,
@@ -50,6 +59,14 @@ const authLimiter = rateLimit({
 });
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
+
+// Specific limiter for OTP sending (prevent email abuse)
+const otpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 OTP sends per 15 mins
+  message: { error: 'Too many OTP requests. Please try again later.' }
+});
+app.use('/api/auth/otp/send', otpLimiter);
 
 // ─── Core Middleware ────────────────────────────────────
 app.use(morgan('dev')); // Request logging

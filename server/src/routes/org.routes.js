@@ -40,14 +40,14 @@ router.get('/me/queues', auth, roleGuard('ORG'), queueController.getOwn);
 router.get('/me/queues/:queueId', [
   auth,
   roleGuard('ORG'),
-  param('queueId').isUUID().withMessage('Invalid Queue ID format.'),
+  param('queueId').isAlphanumeric().withMessage('Invalid Queue ID format.'),
   validate
 ], queueController.getOneOwn);
 
 router.patch('/me/queues/:queueId/status', [
   auth,
   roleGuard('ORG'),
-  param('queueId').isUUID().withMessage('Invalid Queue ID format.'),
+  param('queueId').isAlphanumeric().withMessage('Invalid Queue ID format.'),
   body('status').isIn(['ACTIVE', 'PAUSED', 'CLOSED']).withMessage('Invalid status.'),
   validate
 ], queueController.updateStatus);
@@ -55,22 +55,22 @@ router.patch('/me/queues/:queueId/status', [
 router.post('/me/queues/:queueId/call-next', [
   auth,
   roleGuard('ORG'),
-  param('queueId').isUUID().withMessage('Invalid Queue ID format.'),
+  param('queueId').isAlphanumeric().withMessage('Invalid Queue ID format.'),
   validate
 ], queueController.callNext);
 
 router.delete('/me/queues/:queueId/entries/:entryId', [
   auth,
   roleGuard('ORG'),
-  param('queueId').isUUID().withMessage('Invalid Queue ID format.'),
-  param('entryId').isUUID().withMessage('Invalid Entry ID format.'),
+  param('queueId').isAlphanumeric().withMessage('Invalid Queue ID format.'),
+  param('entryId').isAlphanumeric().withMessage('Invalid Entry ID format.'),
   validate
 ], queueController.removeEntry);
 
 router.delete('/me/queues/:queueId', [
   auth,
   roleGuard('ORG'),
-  param('queueId').isUUID().withMessage('Invalid Queue ID format.'),
+  param('queueId').isAlphanumeric().withMessage('Invalid Queue ID format.'),
   validate
 ], queueController.delete);
 

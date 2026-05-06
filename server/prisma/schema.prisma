@@ -14,6 +14,12 @@ enum Role {
   USER
 }
 
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+  OTP
+}
+
 enum QueueStatus {
   ACTIVE
   PAUSED
@@ -28,15 +34,17 @@ enum EntryStatus {
 }
 
 model Account {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  role      Role
-  createdAt DateTime @default(now()) @map("created_at")
+  id           String       @id @default(cuid())
+  email        String       @unique
+  password     String?
+  role         Role
+  authProvider AuthProvider @default(LOCAL) @map("auth_provider")
+  createdAt    DateTime     @default(now()) @map("created_at")
 
   // Relations
   user         User?
   organization Organization?
+  otps         Otp[]
 
   @@map("accounts")
 }
@@ -102,4 +110,20 @@ model QueueEntry {
   @@unique([queueId, userId])
   @@index([queueId, joinedAt])
   @@map("queue_entries")
+}
+
+model Otp {
+  id        String   @id @default(cuid())
+  accountId String   @map("account_id")
+  code      String
+  expiresAt DateTime @map("expires_at")
+  attempts  Int      @default(0)
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, createdAt])
+  @@map("otps")
 }

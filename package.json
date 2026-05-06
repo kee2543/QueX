@@ -1,0 +1,14 @@
+{
+  "name": "quex",
+  "version": "1.0.0",
+  "description": "QueueX - Virtual Queue Management System",
+  "main": "index.js",
+  "scripts": {
+    "start": "concurrently \"npm run start --prefix server\" \"npm run dev --prefix client\"",
+    "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "install-all": "npm install && npm install --prefix server && npm install --prefix client"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

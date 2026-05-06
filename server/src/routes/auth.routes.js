@@ -20,6 +20,25 @@ router.post('/login', [
   validate
 ], authController.login);
 
+// OTP routes
+router.post('/otp/send', [
+  body('email').isEmail().withMessage('Please provide a valid email address.').normalizeEmail(),
+  validate
+], authController.sendOtp);
+
+router.post('/otp/verify', [
+  body('email').isEmail().withMessage('Please provide a valid email address.').normalizeEmail(),
+  body('code').isLength({ min: 6, max: 6 }).isNumeric().withMessage('Verification code must be a 6-digit number.'),
+  validate
+], authController.verifyOtp);
+
+// Google OAuth route
+router.post('/google', [
+  body('idToken').notEmpty().withMessage('Google ID token is required.'),
+  body('role').optional().isIn(['USER', 'ORG']).withMessage('Role must be either USER or ORG.'),
+  validate
+], authController.googleOAuth);
+
 // Protected routes (require JWT)
 router.get('/me', auth, authController.getProfile);
 router.patch('/me', [

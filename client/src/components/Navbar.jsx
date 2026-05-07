@@ -44,7 +44,9 @@ export default function Navbar() {
       const res = await api.get('/queues/me/active');
       setActiveEntry(res.data);
     } catch (err) {
-      console.error('Failed to fetch active entry');
+      // Silently fail — navbar active-entry is non-critical UI
+      // The retry in api.js will have already attempted 3 retries
+      console.warn('Navbar: Failed to fetch active entry (non-critical)');
     }
   };
 
@@ -65,7 +67,7 @@ export default function Navbar() {
         navigate('/queues');
       }
     } catch (err) {
-      alert('Failed to leave queue');
+      alert('Failed to leave queue. Please try again.');
     }
   };
 

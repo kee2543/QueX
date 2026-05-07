@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../utils/api';
-import { Building, Users, Settings, Play, Pause, Square, Plus, Trash2 } from 'lucide-react';
+import api, { getErrorMessage, isNetworkError } from '../utils/api';
+import { Building, Users, Settings, Play, Pause, Square, Plus, Trash2, RefreshCw, AlertTriangle } from 'lucide-react';
 
 export default function OrgDashboard() {
   const [queues, setQueues] = useState([]);
@@ -11,13 +11,15 @@ export default function OrgDashboard() {
   const [queueForm, setQueueForm] = useState({ name: '', maxCapacity: 100, serviceRate: 5 });
   const [needsOrg, setNeedsOrg] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const [actionLoading, setActionLoading] = useState(null); // Track which action is in progress
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -34,26 +36,39 @@ export default function OrgDashboard() {
           setNeedsOrg(true);
         }
       } else {
-        setError('Failed to load dashboard data.');
+        setError(getErrorMessage(err));
       }
     } finally {
       setLoading(false);
+      setRetrying(false);
     }
+  }, []);
+
+  const handleRetry = () => {
+    setRetrying(true);
+    fetchData();
   };
 
   const handleCreateOrg = async (e) => {
     e.preventDefault();
+    setActionLoading('create-org');
     try {
       await api.post('/orgs', orgForm);
       setNeedsOrg(false);
       setShowCreateForm(true);
+      setError('');
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to create organization');
+      setError(isNetworkError(err)
+        ? 'Network issue — please try again in a moment.'
+        : (err.response?.data?.error || 'Failed to create organization'));
+    } finally {
+      setActionLoading(null);
     }
   };
 
   const handleCreateQueue = async (e) => {
     e.preventDefault();
+    setActionLoading('create-queue');
     try {
       const res = await api.post('/orgs/me/queues', {
         name: queueForm.name,
@@ -63,31 +78,52 @@ export default function OrgDashboard() {
       setQueues([...queues, { ...res.data, waitingCount: 0, entries: [] }]);
       setShowCreateForm(false);
       setQueueForm({ name: '', maxCapacity: 100, serviceRate: 5 });
+      setError('');
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to create queue');
+      setError(isNetworkError(err)
+        ? 'Network issue — please try again in a moment.'
+        : (err.response?.data?.error || 'Failed to create queue'));
+    } finally {
+      setActionLoading(null);
     }
   };
 
   const handleStatusChange = async (queueId, status) => {
+    setActionLoading(`status-${queueId}`);
     try {
       const res = await api.patch(`/orgs/me/queues/${queueId}/status`, { status });
       setQueues(queues.map(q => q.id === queueId ? { ...q, status: res.data.status } : q));
+      setError('');
     } catch (err) {
-      setError('Failed to update status');
+      setError(isNetworkError(err)
+        ? 'Network issue — status update may not have gone through. Refreshing...'
+        : 'Failed to update status');
+      // Auto-refresh to get the truth from the server
+      setTimeout(fetchData, 2000);
+    } finally {
+      setActionLoading(null);
     }
   };
 
   const handleCallNext = async (queueId) => {
+    setActionLoading(`call-${queueId}`);
     try {
       await api.post(`/orgs/me/queues/${queueId}/call-next`);
       fetchData(); // Refresh to stay in sync with positions
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to call next user');
+      setError(isNetworkError(err)
+        ? 'Network issue — the call may not have gone through. Refreshing...'
+        : (err.response?.data?.error || 'Failed to call next user'));
+      // Auto-refresh to get the truth
+      setTimeout(fetchData, 2000);
+    } finally {
+      setActionLoading(null);
     }
   };
 
   const handleDeleteQueue = async (queueId) => {
     if (!window.confirm('Are you sure you want to delete this queue? This action cannot be undone.')) return;
+    setActionLoading(`delete-${queueId}`);
     try {
       await api.delete(`/orgs/me/queues/${queueId}`);
       const updated = queues.filter(q => q.id !== queueId);
@@ -95,8 +131,15 @@ export default function OrgDashboard() {
       if (updated.length === 0) {
         setShowCreateForm(true);
       }
+      setError('');
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to delete queue');
+      setError(isNetworkError(err)
+        ? 'Network issue — please verify if the queue was deleted.'
+        : (err.response?.data?.error || 'Failed to delete queue'));
+      // Auto-refresh to get the truth
+      setTimeout(fetchData, 2000);
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -120,7 +163,14 @@ export default function OrgDashboard() {
             <h2>Create Your Organization</h2>
             <p className="page-subtitle">You need an organization profile to host queues.</p>
           </div>
-          {error && <div className="error-msg">{error}</div>}
+          {error && (
+            <div className="error-banner" style={{ marginBottom: '1rem' }}>
+              <div className="error-banner-content">
+                <AlertTriangle size={16} />
+                <span>{error}</span>
+              </div>
+            </div>
+          )}
           <form onSubmit={handleCreateOrg}>
             <div className="form-group">
               <label className="form-label">Organization Name</label>
@@ -141,8 +191,8 @@ export default function OrgDashboard() {
                 onChange={e => setOrgForm({ ...orgForm, description: e.target.value })}
               />
             </div>
-            <button type="submit" className="btn btn-primary btn-full">
-              Create Organization
+            <button type="submit" className="btn btn-primary btn-full" disabled={actionLoading === 'create-org'}>
+              {actionLoading === 'create-org' ? <><div className="spinner"></div> Creating...</> : 'Create Organization'}
             </button>
           </form>
         </div>
@@ -157,14 +207,29 @@ export default function OrgDashboard() {
           <h1 className="page-title">Organization Dashboard</h1>
           <p className="page-subtitle">Manage your virtual queues ({queues.length}/5)</p>
         </div>
-        {!showCreateForm && queues.length < 5 && (
-          <button className="btn btn-primary" onClick={() => setShowCreateForm(true)}>
-            <Plus size={18} /> New Queue
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button className="btn btn-secondary btn-sm" onClick={handleRetry} disabled={retrying} title="Refresh dashboard">
+            <RefreshCw size={16} className={retrying ? 'spin' : ''} />
           </button>
-        )}
+          {!showCreateForm && queues.length < 5 && (
+            <button className="btn btn-primary" onClick={() => setShowCreateForm(true)}>
+              <Plus size={18} /> New Queue
+            </button>
+          )}
+        </div>
       </div>
 
-      {error && <div className="error-msg" style={{ marginBottom: '1.5rem' }}>{error}</div>}
+      {error && (
+        <div className="error-banner" style={{ marginBottom: '1.5rem' }}>
+          <div className="error-banner-content">
+            <AlertTriangle size={18} />
+            <span>{error}</span>
+          </div>
+          <button className="btn btn-secondary btn-sm" onClick={handleRetry} disabled={retrying}>
+            <RefreshCw size={14} className={retrying ? 'spin' : ''} /> Retry
+          </button>
+        </div>
+      )}
 
       {showCreateForm && (
         <div className="glass-card" style={{ maxWidth: '600px', margin: '0 auto 3rem auto' }}>
@@ -209,8 +274,8 @@ export default function OrgDashboard() {
               />
             </div>
             <div style={{ display: 'flex', gap: '1rem' }}>
-              <button type="submit" className="btn btn-primary btn-full">
-                Create Queue
+              <button type="submit" className="btn btn-primary btn-full" disabled={actionLoading === 'create-queue'}>
+                {actionLoading === 'create-queue' ? <><div className="spinner"></div> Creating...</> : 'Create Queue'}
               </button>
               {queues.length > 0 && (
                 <button type="button" className="btn btn-secondary" onClick={() => setShowCreateForm(false)}>
@@ -246,17 +311,30 @@ export default function OrgDashboard() {
                   <Settings size={16} /> Manage
                 </button>
                 {q.status !== 'ACTIVE' && (
-                  <button className="btn btn-success btn-sm" onClick={() => handleStatusChange(q.id, 'ACTIVE')}>
-                    <Play size={14} /> Start
+                  <button
+                    className="btn btn-success btn-sm"
+                    onClick={() => handleStatusChange(q.id, 'ACTIVE')}
+                    disabled={actionLoading === `status-${q.id}`}
+                  >
+                    {actionLoading === `status-${q.id}` ? <div className="spinner" style={{width:'14px',height:'14px'}}></div> : <Play size={14} />} Start
                   </button>
                 )}
                 {q.status === 'ACTIVE' && (
-                  <button className="btn btn-sm" style={{ background: 'var(--color-warning)', color: 'white', border: 'none' }} onClick={() => handleStatusChange(q.id, 'PAUSED')}>
-                    <Pause size={14} /> Pause
+                  <button
+                    className="btn btn-sm"
+                    style={{ background: 'var(--color-warning)', color: 'white', border: 'none' }}
+                    onClick={() => handleStatusChange(q.id, 'PAUSED')}
+                    disabled={actionLoading === `status-${q.id}`}
+                  >
+                    {actionLoading === `status-${q.id}` ? <div className="spinner" style={{width:'14px',height:'14px'}}></div> : <Pause size={14} />} Pause
                   </button>
                 )}
-                <button className="btn btn-danger btn-sm" onClick={() => handleDeleteQueue(q.id)}>
-                  <Trash2 size={14} />
+                <button
+                  className="btn btn-danger btn-sm"
+                  onClick={() => handleDeleteQueue(q.id)}
+                  disabled={actionLoading === `delete-${q.id}`}
+                >
+                  {actionLoading === `delete-${q.id}` ? <div className="spinner" style={{width:'14px',height:'14px'}}></div> : <Trash2 size={14} />}
                 </button>
               </div>
             </div>
@@ -279,9 +357,13 @@ export default function OrgDashboard() {
             <button 
               className="btn btn-primary btn-full" 
               onClick={() => handleCallNext(q.id)}
-              disabled={q.status !== 'ACTIVE' || q.waitingCount === 0}
+              disabled={q.status !== 'ACTIVE' || q.waitingCount === 0 || actionLoading === `call-${q.id}`}
             >
-              <Users size={18} /> Call Next User
+              {actionLoading === `call-${q.id}` ? (
+                <><div className="spinner"></div> Calling...</>
+              ) : (
+                <><Users size={18} /> Call Next User</>
+              )}
             </button>
           </div>
         ))}

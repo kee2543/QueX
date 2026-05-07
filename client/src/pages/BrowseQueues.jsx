@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../utils/api';
-import { Search, Users, Clock, ArrowRight, LogOut, MapPin } from 'lucide-react';
+import api, { getErrorMessage, isNetworkError } from '../utils/api';
+import { Search, Users, Clock, ArrowRight, LogOut, MapPin, RefreshCw, AlertTriangle } from 'lucide-react';
 
 export default function BrowseQueues() {
   const [queues, setQueues] = useState([]);
@@ -10,15 +10,17 @@ export default function BrowseQueues() {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [processingId, setProcessingId] = useState(null);
+  const [retrying, setRetrying] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
+      setError('');
       const [queuesRes, activeRes] = await Promise.all([
         api.get('/queues'),
         api.get('/queues/me/active')
@@ -26,10 +28,16 @@ export default function BrowseQueues() {
       setQueues(queuesRes.data);
       setActiveEntry(activeRes.data);
     } catch (err) {
-      setError('Failed to load queues.');
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
+      setRetrying(false);
     }
+  }, []);
+
+  const handleRetry = () => {
+    setRetrying(true);
+    fetchData();
   };
 
   const handleLeave = async (queueId) => {
@@ -42,7 +50,11 @@ export default function BrowseQueues() {
       const res = await api.get('/queues');
       setQueues(res.data);
     } catch (err) {
-      alert('Failed to leave queue');
+      // For POST failures (not auto-retried), give the user a clear message
+      const msg = isNetworkError(err)
+        ? 'Network issue — please try again in a moment.'
+        : (err.response?.data?.error || 'Failed to leave queue');
+      alert(msg);
     } finally {
       setProcessingId(null);
     }
@@ -60,20 +72,42 @@ export default function BrowseQueues() {
           <h1 className="page-title">Browse Queues</h1>
           <p className="page-subtitle">Find and join available virtual queues.</p>
         </div>
-        <div style={{ position: 'relative', width: '100%', maxWidth: '300px' }}>
-          <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-          <input 
-            type="text" 
-            className="form-input" 
-            placeholder="Search organizations or queues..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ width: '100%', paddingLeft: '2.5rem' }}
-          />
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          {!loading && (
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={handleRetry}
+              disabled={retrying}
+              title="Refresh queues"
+            >
+              <RefreshCw size={16} className={retrying ? 'spin' : ''} />
+            </button>
+          )}
+          <div style={{ position: 'relative', width: '100%', maxWidth: '300px' }}>
+            <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <input 
+              type="text" 
+              className="form-input" 
+              placeholder="Search organizations or queues..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ width: '100%', paddingLeft: '2.5rem' }}
+            />
+          </div>
         </div>
       </div>
 
-      {error && <div className="error-msg">{error}</div>}
+      {error && (
+        <div className="error-banner">
+          <div className="error-banner-content">
+            <AlertTriangle size={18} />
+            <span>{error}</span>
+          </div>
+          <button className="btn btn-secondary btn-sm" onClick={handleRetry} disabled={retrying}>
+            <RefreshCw size={14} className={retrying ? 'spin' : ''} /> Retry
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div className="loading-screen" style={{ minHeight: '50vh' }}>

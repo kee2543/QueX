@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import api from '../utils/api';
-import { Building, Users, Clock, ArrowLeft, Bell } from 'lucide-react';
+import api, { getErrorMessage, isNetworkError } from '../utils/api';
+import { Building, Users, Clock, ArrowLeft, Bell, RefreshCw, AlertTriangle } from 'lucide-react';
 
 export default function JoinQueue() {
   const { id } = useParams();
@@ -11,20 +11,26 @@ export default function JoinQueue() {
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState('');
   const [notifyPos, setNotifyPos] = useState(3);
+  const [retrying, setRetrying] = useState(false);
 
   useEffect(() => {
-    const fetchQueueDetails = async () => {
-      try {
-        const res = await api.get(`/queues/${id}`);
-        setQueue(res.data);
-      } catch (err) {
-        setError('Failed to load queue details.');
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchQueueDetails();
   }, [id]);
+
+  const fetchQueueDetails = async () => {
+    try {
+      setError('');
+      const res = await api.get(`/queues/${id}`);
+      setQueue(res.data);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+      setRetrying(false);
+    }
+  };
+
+  const handleRetry = () => { setRetrying(true); fetchQueueDetails(); };
 
   const handleJoin = async (e) => {
     e.preventDefault();
@@ -34,27 +40,28 @@ export default function JoinQueue() {
       await api.post(`/queues/${id}/join`, { notify_at_position: parseInt(notifyPos) });
       navigate(`/tracker/${id}`);
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to join queue');
+      setError(isNetworkError(err)
+        ? 'Network issue — please try again in a moment.'
+        : (err.response?.data?.error || 'Failed to join queue'));
       setJoining(false);
     }
   };
 
   if (loading) {
-    return (
-      <div className="page-container">
-        <div className="loading-screen">
-          <div className="spinner"></div>
-          <span>Loading...</span>
-        </div>
-      </div>
-    );
+    return (<div className="page-container"><div className="loading-screen"><div className="spinner"></div><span>Loading...</span></div></div>);
   }
 
   if (!queue) {
     return (
       <div className="page-container" style={{ textAlign: 'center' }}>
-        <h2>Queue Not Found</h2>
-        <button className="btn btn-secondary" onClick={() => navigate('/queues')}>Back to Browse</button>
+        <AlertTriangle size={48} color="var(--color-warning)" style={{ marginBottom: '1rem' }} />
+        <h2>{error || 'Queue Not Found'}</h2>
+        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '1.5rem' }}>
+          <button className="btn btn-primary" onClick={handleRetry} disabled={retrying}>
+            <RefreshCw size={16} className={retrying ? 'spin' : ''} /> Try Again
+          </button>
+          <button className="btn btn-secondary" onClick={() => navigate('/queues')}>Back to Browse</button>
+        </div>
       </div>
     );
   }
@@ -72,7 +79,11 @@ export default function JoinQueue() {
           <p className="page-subtitle">{queue.name}</p>
         </div>
 
-        {error && <div className="error-msg">{error}</div>}
+        {error && (
+          <div className="error-banner" style={{ marginBottom: '1rem' }}>
+            <div className="error-banner-content"><AlertTriangle size={16} /><span>{error}</span></div>
+          </div>
+        )}
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '2rem' }}>
           <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
@@ -92,25 +103,14 @@ export default function JoinQueue() {
             <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Bell size={16} /> Notify me when I reach position:
             </label>
-            <input
-              type="number"
-              className="form-input"
-              value={notifyPos}
-              onChange={(e) => setNotifyPos(e.target.value)}
-              min="1"
-              max="10"
-              required
-            />
+            <input type="number" className="form-input" value={notifyPos} onChange={(e) => setNotifyPos(e.target.value)} min="1" max="10" required />
             <small style={{ color: 'var(--text-muted)' }}>We will send an extra notification when you reach this position.</small>
           </div>
 
-          <button 
-            type="submit" 
-            className="btn btn-primary btn-full btn-lg" 
-            style={{ marginTop: '1rem' }}
+          <button type="submit" className="btn btn-primary btn-full btn-lg" style={{ marginTop: '1rem' }}
             disabled={joining || queue.status !== 'ACTIVE' || queue.waitingCount >= queue.maxCapacity}
           >
-            {joining ? 'Joining...' : 'Join Queue'}
+            {joining ? <><div className="spinner"></div> Joining...</> : 'Join Queue'}
           </button>
         </form>
       </div>

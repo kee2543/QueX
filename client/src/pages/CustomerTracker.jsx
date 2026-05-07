@@ -1,17 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import api from '../utils/api';
+import api, { getErrorMessage, isNetworkError } from '../utils/api';
 import { useSocket } from '../context/SocketContext';
-import { Clock, Users, ArrowLeft, LogOut, Bell, CheckCircle } from 'lucide-react';
+import { Clock, Users, ArrowLeft, LogOut, Bell, RefreshCw, AlertTriangle, WifiOff } from 'lucide-react';
 
 export default function CustomerTracker() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { socket, joinQueueRoom, leaveQueueRoom } = useSocket();
+  const { socket, joinQueueRoom, leaveQueueRoom, isConnected, isReconnecting } = useSocket();
   const [positionData, setPositionData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [leaving, setLeaving] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   useEffect(() => {
     fetchPosition();
@@ -26,10 +28,13 @@ export default function CustomerTracker() {
           position: data.position,
           estimatedWait: data.estimatedWait
         }));
+        setLastUpdated(new Date());
+        setError(''); // Clear any stale errors on successful update
       });
 
       socket.on('queue-status-changed', (data) => {
         setPositionData(prev => prev ? { ...prev, queueStatus: data.status } : null);
+        setLastUpdated(new Date());
       });
 
       socket.on('queue-deleted', () => {
@@ -47,20 +52,35 @@ export default function CustomerTracker() {
     };
   }, [id, socket]);
 
-  const fetchPosition = async () => {
+  // Auto-refresh position data when socket reconnects
+  useEffect(() => {
+    if (isConnected && positionData) {
+      fetchPosition();
+    }
+  }, [isConnected]);
+
+  const fetchPosition = useCallback(async () => {
     try {
-      setLoading(true);
+      setLoading(prev => !positionData ? true : prev); // Only show full loader on initial load
       const res = await api.get(`/queues/${id}/position`);
       setPositionData(res.data);
+      setLastUpdated(new Date());
+      setError('');
     } catch (err) {
       if (err.response?.status === 404) {
         setError('You are not in this queue or the queue does not exist.');
       } else {
-        setError(err.response?.data?.error || 'Failed to fetch position.');
+        setError(getErrorMessage(err));
       }
     } finally {
       setLoading(false);
+      setRetrying(false);
     }
+  }, [id, positionData]);
+
+  const handleRetry = () => {
+    setRetrying(true);
+    fetchPosition();
   };
 
   const handleLeave = async () => {
@@ -73,7 +93,10 @@ export default function CustomerTracker() {
       await api.post(`/queues/${id}/leave`);
       navigate('/queues');
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to leave queue');
+      const msg = isNetworkError(err)
+        ? 'Network issue — your spot is safe. Try again in a moment.'
+        : (err.response?.data?.error || 'Failed to leave queue');
+      setError(msg);
       setLeaving(false);
     }
   };
@@ -89,12 +112,17 @@ export default function CustomerTracker() {
     );
   }
 
-  if (error) {
+  if (error && !positionData) {
     return (
       <div className="page-container" style={{ textAlign: 'center' }}>
         <h2 style={{ marginBottom: '1rem', color: 'var(--color-danger)' }}>Status</h2>
         <p style={{ marginBottom: '2rem' }}>{error}</p>
-        <button className="btn btn-secondary" onClick={() => navigate('/queues')}>Back to Queues</button>
+        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+          <button className="btn btn-primary" onClick={handleRetry} disabled={retrying}>
+            <RefreshCw size={16} className={retrying ? 'spin' : ''} /> Try Again
+          </button>
+          <button className="btn btn-secondary" onClick={() => navigate('/queues')}>Back to Queues</button>
+        </div>
       </div>
     );
   }
@@ -106,6 +134,30 @@ export default function CustomerTracker() {
       <button className="btn btn-secondary btn-sm" style={{ marginBottom: '2rem' }} onClick={() => navigate('/queues')}>
         <ArrowLeft size={16} /> Back
       </button>
+
+      {/* Error banner with retry — shown over existing data */}
+      {error && positionData && (
+        <div className="error-banner" style={{ marginBottom: '1.5rem' }}>
+          <div className="error-banner-content">
+            <AlertTriangle size={18} />
+            <span>{error}</span>
+          </div>
+          <button className="btn btn-secondary btn-sm" onClick={handleRetry} disabled={retrying}>
+            <RefreshCw size={14} className={retrying ? 'spin' : ''} /> Retry
+          </button>
+        </div>
+      )}
+
+      {/* Stale data warning when socket is disconnected */}
+      {!isConnected && positionData && (
+        <div className="warning-banner" style={{ marginBottom: '1.5rem' }}>
+          <WifiOff size={16} />
+          <span>Real-time updates paused. Position shown may be outdated.</span>
+          <button className="btn btn-secondary btn-sm" onClick={handleRetry} disabled={retrying}>
+            <RefreshCw size={14} className={retrying ? 'spin' : ''} />
+          </button>
+        </div>
+      )}
 
       <div className="glass-card" style={{ textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
         {positionData.position === 1 && (
@@ -161,6 +213,12 @@ export default function CustomerTracker() {
             <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>You'll be alerted when your position changes.</div>
           </div>
         </div>
+
+        {lastUpdated && (
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+            Last updated: {lastUpdated.toLocaleTimeString()}
+          </div>
+        )}
 
         <button 
           className="btn btn-danger btn-full" 

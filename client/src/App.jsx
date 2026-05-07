@@ -5,6 +5,7 @@ import { SocketProvider } from './context/SocketContext';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
 import NotificationToast from './components/NotificationToast';
+import ConnectionStatusBanner from './components/ConnectionStatusBanner';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import OrgDashboard from './pages/OrgDashboard';
@@ -28,6 +29,7 @@ function AppRoutes() {
 
   return (
     <>
+      <ConnectionStatusBanner />
       <Navbar />
       <NotificationToast />
       <Routes>

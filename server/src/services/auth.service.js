@@ -20,7 +20,9 @@ const authService = {
       throw { status: 400, message: 'Role must be either ORG or USER.' };
     }
 
-    const existing = await accountRepository.findByEmail(email);
+    const sanitizedEmail = email.trim().toLowerCase();
+
+    const existing = await accountRepository.findByEmail(sanitizedEmail);
     if (existing) {
       throw { status: 409, message: 'An account with this email already exists.' };
     }
@@ -28,7 +30,7 @@ const authService = {
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
     const account = await accountRepository.create({
-      email,
+      email: sanitizedEmail,
       password: hashedPassword,
       role,
       authProvider: 'LOCAL',
@@ -49,7 +51,8 @@ const authService = {
   },
 
   async login({ email, password }) {
-    const account = await accountRepository.findByEmail(email);
+    const sanitizedEmail = email.trim().toLowerCase();
+    const account = await accountRepository.findByEmail(sanitizedEmail);
     if (!account) {
       throw { status: 401, message: 'Invalid email or password.' };
     }
@@ -92,20 +95,21 @@ const authService = {
    * Creates an account (role: USER, provider: OTP) if one doesn't exist.
    */
   async sendOtp({ email }) {
+    const sanitizedEmail = email.trim().toLowerCase();
     // Find or create an account for this email
-    let account = await accountRepository.findByEmail(email);
+    let account = await accountRepository.findByEmail(sanitizedEmail);
 
     if (!account) {
       // Create a new account without a password for OTP-only users
       account = await accountRepository.create({
-        email,
+        email: sanitizedEmail,
         password: null,
         role: 'USER',
         authProvider: 'OTP',
       });
 
       // Create a user profile with the email prefix as a default name
-      const defaultName = email.split('@')[0];
+      const defaultName = sanitizedEmail.split('@')[0];
       await userRepository.create(account.id, { name: defaultName });
     }
 
@@ -119,7 +123,7 @@ const authService = {
     await otpRepository.create(account.id, code, expiresAt);
 
     // Send the OTP email
-    await emailService.sendOtpEmail(email, code);
+    await emailService.sendOtpEmail(sanitizedEmail, code);
 
     return { message: 'Verification code sent to your email.' };
   },
@@ -128,7 +132,8 @@ const authService = {
    * Verify a 6-digit OTP code and return a JWT.
    */
   async verifyOtp({ email, code }) {
-    const account = await accountRepository.findByEmail(email);
+    const sanitizedEmail = email.trim().toLowerCase();
+    const account = await accountRepository.findByEmail(sanitizedEmail);
     if (!account) {
       throw { status: 401, message: 'Invalid email or verification code.' };
     }
@@ -188,14 +193,15 @@ const authService = {
       throw { status: 401, message: 'Invalid Google token.' };
     }
 
-    const { email, name: googleName, email_verified } = payload;
+    const { email: googleEmail, name: googleName, email_verified } = payload;
+    const sanitizedEmail = googleEmail.trim().toLowerCase();
 
     if (!email_verified) {
       throw { status: 401, message: 'Google email is not verified.' };
     }
 
     // Find or create account
-    let account = await accountRepository.findByEmail(email);
+    let account = await accountRepository.findByEmail(sanitizedEmail);
     let isNewUser = false;
 
     if (!account) {
@@ -204,7 +210,7 @@ const authService = {
       }
 
       account = await accountRepository.create({
-        email,
+        email: sanitizedEmail,
         password: null,
         role,
         authProvider: 'GOOGLE',
@@ -218,11 +224,11 @@ const authService = {
 
     if (isNewUser) {
       if (account.role === 'USER') {
-        const user = await userRepository.create(account.id, { name: googleName || email.split('@')[0] });
+        const user = await userRepository.create(account.id, { name: googleName || sanitizedEmail.split('@')[0] });
         profileId = user.id;
         name = user.name;
       } else {
-        const org = await orgRepository.create(account.id, { name: googleName || email.split('@')[0], description: '' });
+        const org = await orgRepository.create(account.id, { name: googleName || sanitizedEmail.split('@')[0], description: '' });
         profileId = org.id;
         name = org.name;
       }
@@ -235,7 +241,7 @@ const authService = {
     const token = this.generateToken(account, profileId);
 
     return {
-      user: { id: profileId, accountId: account.id, name, email, role: account.role },
+      user: { id: profileId, accountId: account.id, name, email: account.email, role: account.role },
       token,
       isNewUser,
     };

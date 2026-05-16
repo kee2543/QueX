@@ -26,7 +26,7 @@ export default function Register() {
     setLoading(true);
 
     try {
-      const user = await register(name, email, password, role);
+      const user = await register(name, email.trim(), password, role);
       navigate(user.role === 'ORG' ? '/dashboard' : '/queues');
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed. Please try again.');

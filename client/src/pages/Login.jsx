@@ -50,7 +50,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const user = await login(email, password);
+      const user = await login(email.trim(), password);
       navigate(user.role === 'ORG' ? '/dashboard' : '/queues');
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed. Please try again.');

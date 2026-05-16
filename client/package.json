@@ -13,6 +13,7 @@
     "@react-oauth/google": "^0.13.5",
     "axios": "^1.15.2",
     "lucide-react": "^1.14.0",
+    "quex": "file:..",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-router-dom": "^7.14.2",

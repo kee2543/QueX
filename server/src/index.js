@@ -29,13 +29,13 @@ app.use(helmet({
     directives: {
       ...helmet.contentSecurityPolicy.getDefaultDirectives(),
       "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-      "connect-src": ["'self'", "http://localhost:5173", "ws://localhost:5173", "http://localhost:5000", "ws://localhost:5000"],
+      "connect-src": ["'self'", "http://localhost:5173", "ws://localhost:5173", "http://localhost:5000", "ws://localhost:5000", "http://localhost:4000", "ws://localhost:4000"],
       "img-src": ["'self'", "data:", "https:"],
     },
   },
 }));
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: [process.env.CLIENT_URL || 'http://localhost:5173', 'http://localhost:4000'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']

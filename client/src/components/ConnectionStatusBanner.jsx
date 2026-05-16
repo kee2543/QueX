@@ -1,4 +1,5 @@
 import { useSocket } from '../context/SocketContext';
+import { useAuth } from '../context/AuthContext';
 import { Wifi, WifiOff, RefreshCw } from 'lucide-react';
 
 /**
@@ -7,9 +8,10 @@ import { Wifi, WifiOff, RefreshCw } from 'lucide-react';
  */
 export default function ConnectionStatusBanner() {
   const { connectionStatus, reconnectAttempt, isConnected } = useSocket();
+  const { isAuthenticated } = useAuth();
 
-  // Don't show anything when connected — no noise
-  if (isConnected) return null;
+  // Don't show anything when connected or not logged in — no noise
+  if (isConnected || !isAuthenticated) return null;
 
   const isReconnecting = connectionStatus === 'connecting';
 
